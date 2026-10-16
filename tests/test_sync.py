@@ -177,10 +177,14 @@ def test_bad_repo_names_rejected(server):
 
 def test_web_ui_escapes_content(repo, server):
     url, _ = server
-    write(repo, "<script>alert(1)</script>.txt", "x\n")
+    # Filenames can't contain < or > on Windows, so the payload goes in the
+    # commit message and the file content, which the UI also renders.
+    write(repo, "notes.txt", "<script>alert(1)</script>\n")
     commit_all(repo, "<img src=x onerror=alert(1)>")
     make_remote(repo, url)
     sync.push(repo)
     page = urllib.request.urlopen(f"{url}/proj").read().decode()
-    assert "<script>alert" not in page and "<img src=x" not in page
-    assert "&lt;img src=x" in page
+    assert "<img src=x" not in page and "&lt;img src=x" in page
+    commit = sync.ls_remote(f"{url}/proj")["refs"]["refs/heads/main"]
+    diff_page = urllib.request.urlopen(f"{url}/proj/commit/{commit}").read().decode()
+    assert "<script>alert" not in diff_page and "&lt;script&gt;alert" in diff_page

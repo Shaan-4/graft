@@ -156,7 +156,15 @@ class ObjectStore:
         try:
             with os.fdopen(fd, "wb") as f:
                 f.write(zlib.compress(raw))
-            os.replace(tmp, path)
+            try:
+                os.replace(tmp, path)
+            except PermissionError:
+                # Windows: another writer stored this same object a moment
+                # ago and a reader has it open. Same id means same bytes, so
+                # the existing file is exactly what we were about to write.
+                if not path.exists():
+                    raise
+                Path(tmp).unlink(missing_ok=True)
         except BaseException:
             Path(tmp).unlink(missing_ok=True)
             raise

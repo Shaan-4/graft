@@ -23,7 +23,7 @@ def build_demo(path: Path) -> Repo:
     def write(rel: str, text: str):
         p = path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text, encoding="utf-8")
+        p.write_bytes(text.encode())   # LF on every OS
 
     def commit(msg: str, author=("Shaan Hasan", "shaan@example.com")):
         os.environ["GRAFT_AUTHOR_NAME"], os.environ["GRAFT_AUTHOR_EMAIL"] = author

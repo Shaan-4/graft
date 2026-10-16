@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 
 import pytest
 
@@ -24,6 +25,7 @@ def test_status_lifecycle(repo):
 
 def test_stat_cache_skips_rehash(repo, monkeypatch):
     write(repo, "a", "1\n")
+    time.sleep(0.05)            # index must be strictly newer than the file
     commit_all(repo, "c")
     import graft.objects
     calls = []
@@ -31,6 +33,19 @@ def test_stat_cache_skips_rehash(repo, monkeypatch):
     monkeypatch.setattr(graft.objects, "hash_object", lambda *a: calls.append(1) or real(*a))
     repo.status()
     assert calls == []          # size + mtime unchanged: no read, no hash
+
+
+def test_racily_clean_file_is_rehashed(repo):
+    """Same size, same mtime, different content, edited in the same tick the
+    index was written. A naive stat cache calls this clean; it isn't."""
+    write(repo, "a", "1\n")
+    commit_all(repo, "c")
+    entry = repo.read_index()["a"]
+    write(repo, "a", "2\n")                         # same size
+    m = entry["mtime_ns"]
+    os.utime(repo.worktree / "a", ns=(m, m))         # same mtime as recorded
+    os.utime(repo.gitdir / "graft-index.json", ns=(m, m))   # same tick as index
+    assert repo.status().unstaged == {"a": "modified"}
 
 
 def test_ignore_file(repo):

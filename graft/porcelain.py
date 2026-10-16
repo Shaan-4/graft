@@ -45,7 +45,7 @@ def merge(repo: Repo, other_name: str) -> MergeResult:
     # Leave conflict markers in the working tree; non-conflicted results go
     # straight to the index. The user fixes the files, adds them, commits.
     _write_result(repo, m.files, ours, conflicted=set(m.conflicts))
-    (repo.gitdir / "MERGE_HEAD").write_text(theirs + "\n", encoding="utf-8")
+    (repo.gitdir / "MERGE_HEAD").write_bytes((theirs + "\n").encode())
     return MergeResult("conflict", None, m.conflicts)
 
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -70,8 +71,10 @@ class Repo:
             raise RepoError(f"repository already exists at {gitdir}")
         for d in ("objects", "refs/heads", "refs/tags", "refs/remotes"):
             (gitdir / d).mkdir(parents=True, exist_ok=True)
-        (gitdir / "HEAD").write_text(f"ref: refs/heads/{branch}\n", encoding="utf-8")
-        (gitdir / "graft.json").write_text(json.dumps({"remotes": {}}, indent=2), encoding="utf-8")
+        # Bytes, not text: in text mode Windows turns "\n" into "\r\n", and
+        # git rejects a HEAD or ref file with a stray "\r".
+        cls._atomic_write(gitdir / "HEAD", f"ref: refs/heads/{branch}\n".encode())
+        cls._atomic_write(gitdir / "graft.json", json.dumps({"remotes": {}}, indent=2).encode())
         return cls(gitdir, None if bare else path)
 
     @classmethod
@@ -148,18 +151,18 @@ class Repo:
         except FileExistsError:
             raise RefConflict(f"{ref} is locked by another update; retry")
         try:
-            with os.fdopen(fd, "w") as f:
+            with os.fdopen(fd, "wb") as f:
                 current = self.read_ref(ref)
                 if expected_old is not ... and current != expected_old:
                     raise RefConflict(
                         f"{ref} is at {current and current[:8]}, expected "
                         f"{expected_old and expected_old[:8]}")
-                f.write(new + "\n")
+                f.write((new + "\n").encode())
                 f.flush()
                 os.fsync(f.fileno())
             # The rename is the commit point: readers see the old file or the
             # new one, never a partial write.
-            os.replace(lock, path)
+            replace_with_retry(lock, path)
         finally:
             if lock.exists():
                 lock.unlink()
@@ -245,17 +248,24 @@ class Repo:
     def _mode_of(self, p: Path) -> str:
         return MODE_EXEC if os.name != "nt" and os.access(p, os.X_OK) else MODE_FILE
 
-    def _hash_file(self, rel: str, index_entry: dict | None) -> str:
+    def _hash_file(self, rel: str, index_entry: dict | None, index_mtime_ns: int = 0) -> str:
         """
         Stat cache: if size and mtime match what the index recorded when the
         file was staged, assume the content is unchanged and skip reading and
         hashing it. Turns `status` on a big repo from "read every byte" into
         "stat every file". Same trick git uses.
+
+        "Racily clean" guard: timestamps have finite resolution. If a file was
+        staged and then edited again within the same tick, size and mtime can
+        both still match while the content differs. Such an entry is only
+        trusted if its mtime is strictly older than the index file itself;
+        anything at or after that moment gets rehashed. (git's rule too.)
         """
         p = self.worktree / rel
         st = p.stat()
         if index_entry and index_entry.get("size") == st.st_size \
-                and index_entry.get("mtime_ns") == st.st_mtime_ns:
+                and index_entry.get("mtime_ns") == st.st_mtime_ns \
+                and st.st_mtime_ns < index_mtime_ns:
             return index_entry["sha"]
         from .objects import hash_object
         return hash_object(b"blob", p.read_bytes())
@@ -312,6 +322,8 @@ class Repo:
                 staged[path] = "modified"
 
         unstaged, untracked = {}, []
+        ip = self._index_path()
+        index_mtime = ip.stat().st_mtime_ns if ip.exists() else 0
         on_disk = set(self.walk_worktree())
         for path in sorted(on_disk | set(index)):
             entry = index.get(path)
@@ -319,7 +331,7 @@ class Repo:
                 untracked.append(path)
             elif path not in on_disk:
                 unstaged[path] = "deleted"
-            elif self._hash_file(path, entry) != entry["sha"]:
+            elif self._hash_file(path, entry, index_mtime) != entry["sha"]:
                 unstaged[path] = "modified"
         return Status(dict(sorted(staged.items())), unstaged, untracked)
 
@@ -459,6 +471,24 @@ class Repo:
 
     @staticmethod
     def _atomic_write(path: Path, data: bytes) -> None:
-        tmp = path.with_name(path.name + f".tmp{os.getpid()}")
+        tmp = path.with_name(path.name + f".tmp{os.getpid()}-{threading.get_ident()}")
         tmp.write_bytes(data)
-        os.replace(tmp, path)
+        replace_with_retry(tmp, path)
+
+
+def replace_with_retry(src: Path, dst: Path, attempts: int = 20) -> None:
+    """
+    os.replace, but tolerant of Windows. There, renaming onto a file that
+    another thread or process has open fails with PermissionError instead of
+    just working as on POSIX. The holder is a reader that closes the file
+    within milliseconds, so back off briefly and retry (git for Windows does
+    the same). On POSIX the first attempt always succeeds.
+    """
+    for i in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if os.name != "nt" or i == attempts - 1:
+                raise
+            time.sleep(0.005 * (i + 1))
