@@ -78,7 +78,7 @@ Only 8x smaller, because the edited file is still sent in full. Real git sends a
 
 ```
 pip install -e ".[dev]"
-python -m pytest -q                 # 40 tests, incl. git-compat and push races
+python -m pytest -q                 # 41 tests, incl. git-compat and push races
 python bench/bench.py
 
 # server
@@ -118,6 +118,6 @@ graft/
 server/
   app.py         HTTP protocol endpoints + web UI
   demo.py        builds the demo repo (two merges, one with a resolved conflict)
-tests/           40 tests
+tests/           41 tests
 bench/bench.py
 ```
