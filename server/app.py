@@ -1,8 +1,8 @@
 """
-mgit server: hosts bare repositories over HTTP, plus a read-only web UI.
+graft server: hosts bare repositories over HTTP, plus a read-only web UI.
 
 Clone URL for a repo is just  https://<host>/<repo-name>  (same shape as git).
-Reads are public. Pushes need `Authorization: Bearer $MGIT_PUSH_TOKEN` when
+Reads are public. Pushes need `Authorization: Bearer $GRAFT_PUSH_TOKEN` when
 that variable is set, so a public demo can't be filled with junk.
 """
 from __future__ import annotations
@@ -22,14 +22,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
-from mgit.diff import is_binary, unified
-from mgit.objects import ObjectError
-from mgit.repo import Repo, RefConflict, RepoError
-from mgit.sync import SyncError, build_pack, objects_to_send, receive
+from graft.diff import is_binary, unified
+from graft.objects import ObjectError
+from graft.repo import Repo, RefConflict, RepoError
+from graft.sync import SyncError, build_pack, objects_to_send, receive
 
-REPOS = Path(os.getenv("MGIT_REPOS", "repos")).resolve()
-PUSH_TOKEN = os.getenv("MGIT_PUSH_TOKEN")
-MAX_PUSH_BYTES = int(os.getenv("MGIT_MAX_PUSH_BYTES", str(20 * 1024 * 1024)))
+REPOS = Path(os.getenv("GRAFT_REPOS", "repos")).resolve()
+PUSH_TOKEN = os.getenv("GRAFT_PUSH_TOKEN")
+MAX_PUSH_BYTES = int(os.getenv("GRAFT_MAX_PUSH_BYTES", str(20 * 1024 * 1024)))
 NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
 
@@ -40,7 +40,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="mgit server", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="graft server", version="0.1.0", lifespan=lifespan)
 
 
 # ------------------------------------------------------------ helpers
@@ -63,7 +63,7 @@ def _open(name: str, must_exist: bool = True) -> Repo | None:
 
 def _check_token(request: Request) -> None:
     if PUSH_TOKEN and request.headers.get("authorization") != f"Bearer {PUSH_TOKEN}":
-        raise HTTPException(401, "push requires a valid token (set MGIT_TOKEN on the client)")
+        raise HTTPException(401, "push requires a valid token (set GRAFT_TOKEN on the client)")
 
 
 # ------------------------------------------------------------ protocol
@@ -89,7 +89,7 @@ async def upload_pack(name: str, request: Request):
         pack = build_pack(repo.objects, objects_to_send(repo.objects, wants, haves))
     except ObjectError as e:
         raise HTTPException(404, str(e))
-    return Response(pack, media_type="application/x-mgit-pack")
+    return Response(pack, media_type="application/x-graft-pack")
 
 
 @app.post("/{name}/receive-pack")
@@ -106,7 +106,7 @@ async def receive_pack(name: str, request: Request):
             raise HTTPException(413, "push too large")
 
     h = request.headers
-    ref, old, new = h.get("x-mgit-ref", ""), h.get("x-mgit-old", ""), h.get("x-mgit-new", "")
+    ref, old, new = h.get("x-graft-ref", ""), h.get("x-graft-old", ""), h.get("x-graft-new", "")
     if not (re.fullmatch(r"[0-9a-f]{40}", old) and re.fullmatch(r"[0-9a-f]{40}", new)):
         raise HTTPException(400, "missing or malformed ref update headers")
 
@@ -118,7 +118,7 @@ async def receive_pack(name: str, request: Request):
         except RepoError:          # created by a concurrent push a moment ago
             repo = Repo(path, None)
     try:
-        n = receive(repo, bytes(data), ref, old, new, h.get("x-mgit-force") == "1")
+        n = receive(repo, bytes(data), ref, old, new, h.get("x-graft-force") == "1")
     except RefConflict as e:
         raise HTTPException(409, f"rejected: {e}. Someone pushed first; pull and retry.")
     except SyncError as e:
@@ -165,7 +165,7 @@ e = html.escape
 def _page(title: str, crumb: str, body: str) -> HTMLResponse:
     return HTMLResponse(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title>
-<style>{CSS}</style></head><body><main><header><a class="logo" href="/">mgit</a>
+<style>{CSS}</style></head><body><main><header><a class="logo" href="/">graft</a>
 <span class="crumb">{crumb}</span></header>{body}</main></body></html>""")
 
 
@@ -196,11 +196,11 @@ def ui_home(request: Request):
     body = f"""<h1>Repositories</h1>
 <p class="mute">Hosted by a version-control system written from scratch. Object format is byte-compatible with git.</p>
 <div class="card">{''.join(rows) or '<div class="row mute">No repositories yet.</div>'}</div>
-<h2>Try it</h2><pre class="card" style="padding:12px 14px">pip install git+https://github.com/&lt;you&gt;/mgit
-mgit clone {e(base)}/demo
+<h2>Try it</h2><pre class="card" style="padding:12px 14px">pip install git+https://github.com/&lt;you&gt;/graft
+graft clone {e(base)}/demo
 cd demo
-mgit log --oneline</pre>"""
-    return _page("mgit", "", body)
+graft log --oneline</pre>"""
+    return _page("graft", "", body)
 
 
 @app.get("/{name}", response_class=HTMLResponse)
@@ -275,7 +275,7 @@ def ui_blob(name: str, sha: str, path: str = ""):
 # ------------------------------------------------------------ demo seed
 
 def seed_demo():
-    if os.getenv("MGIT_SEED_DEMO") != "1" or (REPOS / "demo" / "HEAD").exists():
+    if os.getenv("GRAFT_SEED_DEMO") != "1" or (REPOS / "demo" / "HEAD").exists():
         return
     from server.demo import build_demo
     REPOS.mkdir(parents=True, exist_ok=True)
@@ -283,7 +283,7 @@ def seed_demo():
         work = build_demo(Path(tmp) / "demo")
         staging = REPOS / f".demo-{os.getpid()}"
         shutil.copytree(work.gitdir, staging)
-        (staging / "mgit-index.json").unlink(missing_ok=True)
+        (staging / "graft-index.json").unlink(missing_ok=True)
         try:
             os.replace(staging, REPOS / "demo")      # another worker may have won
         except OSError:

@@ -3,7 +3,7 @@ import threading
 
 import pytest
 
-from mgit.repo import RefConflict, Repo, RepoError
+from graft.repo import RefConflict, Repo, RepoError
 from tests.conftest import commit_all, write
 
 
@@ -25,20 +25,20 @@ def test_status_lifecycle(repo):
 def test_stat_cache_skips_rehash(repo, monkeypatch):
     write(repo, "a", "1\n")
     commit_all(repo, "c")
-    import mgit.objects
+    import graft.objects
     calls = []
-    real = mgit.objects.hash_object
-    monkeypatch.setattr(mgit.objects, "hash_object", lambda *a: calls.append(1) or real(*a))
+    real = graft.objects.hash_object
+    monkeypatch.setattr(graft.objects, "hash_object", lambda *a: calls.append(1) or real(*a))
     repo.status()
     assert calls == []          # size + mtime unchanged: no read, no hash
 
 
 def test_ignore_file(repo):
-    write(repo, ".mgitignore", "*.log\nbuild/\n")
+    write(repo, ".graftignore", "*.log\nbuild/\n")
     write(repo, "app.log", "x")
     write(repo, "build/out.bin", "x")
     write(repo, "src.py", "x")
-    assert repo.status().untracked == [".mgitignore", "src.py"]
+    assert repo.status().untracked == [".graftignore", "src.py"]
 
 
 def test_branch_switch_restores_files(repo):

@@ -16,7 +16,7 @@ what's wanted and stops the moment it reaches anything implied by a have.
 Unchanged files have unchanged blob ids, so they are skipped too.
 
 Pack format (all integers big-endian):
-  "MGPK" | u32 version | u32 count | count x (u8 type | u32 len | bytes)
+  "GRPK" | u32 version | u32 count | count x (u8 type | u32 len | bytes)
   | 20-byte SHA-1 of everything before it
 then the whole thing is zlib-compressed for the wire.
 
@@ -39,7 +39,7 @@ from pathlib import Path
 from .objects import ObjectError, ObjectStore
 from .repo import Repo, RepoError
 
-MAGIC = b"MGPK"
+MAGIC = b"GRPK"
 VERSION = 1
 TYPE_CODE = {b"blob": 1, b"tree": 2, b"commit": 3}
 CODE_TYPE = {v: k for k, v in TYPE_CODE.items()}
@@ -219,7 +219,7 @@ class Transfer:
 def _request(url: str, data: bytes | None = None, headers: dict | None = None) -> bytes:
     headers = dict(headers or {})
     import os
-    token = os.getenv("MGIT_TOKEN")
+    token = os.getenv("GRAFT_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, data=data, headers=headers,
@@ -240,7 +240,7 @@ def _request(url: str, data: bytes | None = None, headers: dict | None = None) -
 def remote_url(repo: Repo, remote: str) -> str:
     url = repo.config().get("remotes", {}).get(remote)
     if not url:
-        raise RepoError(f"no remote named '{remote}' (use `mgit remote add`)")
+        raise RepoError(f"no remote named '{remote}' (use `graft remote add`)")
     return url.rstrip("/")
 
 
@@ -286,14 +286,14 @@ def push(repo: Repo, remote: str = "origin", branch: str | None = None,
     if remote_sha and not force:
         if not repo.objects.has(remote_sha) or not repo.is_ancestor(remote_sha, local):
             raise SyncError("rejected: remote has commits you don't (non-fast-forward). "
-                            "Run `mgit pull` first.")
+                            "Run `graft pull` first.")
     haves = [s for s in refs.values() if repo.objects.has(s)]
     ids = objects_to_send(repo.objects, [local], haves)
     wire = build_pack(repo.objects, ids)
     _request(f"{url}/receive-pack", wire, {
-        "Content-Type": "application/x-mgit-pack",
-        "X-Mgit-Ref": ref, "X-Mgit-Old": remote_sha or ZERO, "X-Mgit-New": local,
-        "X-Mgit-Force": "1" if force else "0",
+        "Content-Type": "application/x-graft-pack",
+        "X-Graft-Ref": ref, "X-Graft-Old": remote_sha or ZERO, "X-Graft-New": local,
+        "X-Graft-Force": "1" if force else "0",
     })
     repo.update_ref(f"refs/remotes/{remote}/{branch}", local)
     return Transfer(len(ids), len(wire))

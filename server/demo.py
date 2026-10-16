@@ -6,9 +6,9 @@ import os
 import time
 from pathlib import Path
 
-import mgit.repo as repo_mod
-from mgit import porcelain
-from mgit.repo import Repo
+import graft.repo as repo_mod
+from graft import porcelain
+from graft.repo import Repo
 
 
 def build_demo(path: Path) -> Repo:
@@ -26,7 +26,7 @@ def build_demo(path: Path) -> Repo:
         p.write_text(text, encoding="utf-8")
 
     def commit(msg: str, author=("Shaan Hasan", "shaan@example.com")):
-        os.environ["MGIT_AUTHOR_NAME"], os.environ["MGIT_AUTHOR_EMAIL"] = author
+        os.environ["GRAFT_AUTHOR_NAME"], os.environ["GRAFT_AUTHOR_EMAIL"] = author
         r.add(["."])
         tick()
         return porcelain.commit(r, msg)

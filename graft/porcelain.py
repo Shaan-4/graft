@@ -16,7 +16,7 @@ class MergeResult:
 
 def merge(repo: Repo, other_name: str) -> MergeResult:
     if (repo.gitdir / "MERGE_HEAD").exists():
-        raise RepoError("a merge is in progress; resolve conflicts, `mgit add`, then `mgit commit`")
+        raise RepoError("a merge is in progress; resolve conflicts, `graft add`, then `graft commit`")
     ours = repo.resolve("HEAD")
     theirs = repo.resolve(other_name)
     if not repo.status().clean:

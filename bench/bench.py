@@ -19,10 +19,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mgit import objects as obj_mod  # noqa: E402
-from mgit.diff import lcs_dp, myers  # noqa: E402
-from mgit.repo import Repo  # noqa: E402
-from mgit.sync import build_pack, objects_to_send  # noqa: E402
+from graft import objects as obj_mod  # noqa: E402
+from graft.diff import lcs_dp, myers  # noqa: E402
+from graft.repo import Repo  # noqa: E402
+from graft.sync import build_pack, objects_to_send  # noqa: E402
 
 STDLIB = Path(os.__file__).parent
 
@@ -58,8 +58,8 @@ def bench_push(tmp: Path):
     tree = STDLIB / "email"
     work = tmp / "work"
     shutil.copytree(tree, work, ignore=shutil.ignore_patterns("__pycache__"))
-    os.environ.setdefault("MGIT_AUTHOR_NAME", "bench")
-    os.environ.setdefault("MGIT_AUTHOR_EMAIL", "bench@example.com")
+    os.environ.setdefault("GRAFT_AUTHOR_NAME", "bench")
+    os.environ.setdefault("GRAFT_AUTHOR_EMAIL", "bench@example.com")
     r = Repo.init(work)
     cwd = os.getcwd()
     os.chdir(work)
@@ -78,7 +78,7 @@ def bench_push(tmp: Path):
     finally:
         os.chdir(cwd)
     nfiles = len(r.read_index())
-    raw = sum(p.stat().st_size for p in work.rglob("*") if p.is_file() and ".mgit" not in p.parts)
+    raw = sum(p.stat().st_size for p in work.rglob("*") if p.is_file() and ".graft" not in p.parts)
     print(f"\n## Push size: stdlib/email ({nfiles} files, {raw/1024:.0f} KiB on disk)\n")
     print("| push | objects | bytes on wire |")
     print("|---|---|---|")

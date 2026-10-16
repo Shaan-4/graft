@@ -2,10 +2,10 @@ import random
 
 import pytest
 
-from mgit import porcelain
-from mgit.diff import apply, edit_distance, lcs_dp, myers, unified
-from mgit.merge import merge3
-from mgit.repo import RepoError
+from graft import porcelain
+from graft.diff import apply, edit_distance, lcs_dp, myers, unified
+from graft.merge import merge3
+from graft.repo import RepoError
 from tests.conftest import commit_all, write
 
 

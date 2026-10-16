@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-import mgit.repo as repo_mod
-from mgit.repo import Repo
+import graft.repo as repo_mod
+from graft.repo import Repo
 
 
 @pytest.fixture(autouse=True)
 def _identity(monkeypatch):
-    monkeypatch.setenv("MGIT_AUTHOR_NAME", "Test User")
-    monkeypatch.setenv("MGIT_AUTHOR_EMAIL", "test@example.com")
+    monkeypatch.setenv("GRAFT_AUTHOR_NAME", "Test User")
+    monkeypatch.setenv("GRAFT_AUTHOR_EMAIL", "test@example.com")
     # Strictly increasing commit times so ordering is deterministic.
     t = [1_700_000_000]
 
@@ -36,7 +36,7 @@ def write(r: Repo, rel: str, text: str | bytes) -> None:
 
 
 def commit_all(r: Repo, msg: str) -> str:
-    from mgit import porcelain
+    from graft import porcelain
     r.add(["."])
     return porcelain.commit(r, msg)
 
@@ -46,7 +46,7 @@ def server(tmp_path_factory, monkeypatch):
     """A real HTTP server on a free port, so the client exercises actual sockets."""
     import uvicorn
     repos = tmp_path_factory.mktemp("srv")
-    monkeypatch.setenv("MGIT_REPOS", str(repos))
+    monkeypatch.setenv("GRAFT_REPOS", str(repos))
     import importlib
     import server.app as app_mod
     importlib.reload(app_mod)
@@ -60,7 +60,7 @@ def server(tmp_path_factory, monkeypatch):
     th.start()
     while not srv.started:
         time.sleep(0.02)
-    monkeypatch.setenv("MGIT_TOKEN", "s3cret")
+    monkeypatch.setenv("GRAFT_TOKEN", "s3cret")
     yield f"http://127.0.0.1:{port}", repos
     srv.should_exit = True
     th.join(timeout=5)

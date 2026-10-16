@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from mgit.objects import ObjectError, TreeEntry, decode_commit, decode_tree, encode_tree, hash_object
+from graft.objects import ObjectError, TreeEntry, decode_commit, decode_tree, encode_tree, hash_object
 from tests.conftest import commit_all, write
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")

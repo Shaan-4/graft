@@ -1,4 +1,4 @@
-"""mgit command line. Run `mgit -h` for the list of commands."""
+"""graft command line. Run `graft -h` for the list of commands."""
 from __future__ import annotations
 
 import argparse
@@ -24,7 +24,7 @@ def _fmt_time(sig: str) -> str:
 
 def cmd_init(a):
     r = Repo.init(Path(a.path))
-    print(f"Initialized empty mgit repository in {r.gitdir.resolve()}")
+    print(f"Initialized empty graft repository in {r.gitdir.resolve()}")
 
 
 def cmd_config(a):
@@ -55,7 +55,7 @@ def cmd_status(a):
     st = r.status()
     print(f"On branch {r.current_branch() or '(detached)'}")
     if (r.gitdir / "MERGE_HEAD").exists():
-        print("Merge in progress: fix conflicts, `mgit add` them, then `mgit commit`.")
+        print("Merge in progress: fix conflicts, `graft add` them, then `graft commit`.")
     if st.staged:
         print("\nChanges to be committed:")
         for p, s in st.staged.items():
@@ -116,7 +116,7 @@ def cmd_diff(a):
     for p in sorted(paths):
         out = unified(old(p), right(p), f"a/{p}", f"b/{p}")
         if out:
-            sys.stdout.write(f"diff --mgit a/{p} b/{p}\n" + out)
+            sys.stdout.write(f"diff --graft a/{p} b/{p}\n" + out)
 
 
 def cmd_branch(a):
@@ -149,7 +149,7 @@ def cmd_merge(a):
         print("Automatic merge failed. Conflicts in:")
         for p in res.conflicts:
             print(f"    {p}")
-        print("Fix them, `mgit add` the files, then `mgit commit`.")
+        print("Fix them, `graft add` the files, then `graft commit`.")
         sys.exit(1)
     print({"up-to-date": "Already up to date.",
            "fast-forward": f"Fast-forward to {res.commit[:8]}",
@@ -223,7 +223,7 @@ def cmd_clone(a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="mgit", description="A small git, built from scratch.")
+    p = argparse.ArgumentParser(prog="graft", description="A small git, built from scratch.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("init"); s.add_argument("path", nargs="?", default="."); s.set_defaults(f=cmd_init)

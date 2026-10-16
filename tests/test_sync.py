@@ -4,9 +4,9 @@ import urllib.request
 
 import pytest
 
-from mgit import porcelain, sync
-from mgit.repo import Repo
-from mgit.sync import SyncError
+from graft import porcelain, sync
+from graft.repo import Repo
+from graft.sync import SyncError
 from tests.conftest import commit_all, write
 
 
@@ -131,7 +131,7 @@ def test_non_fast_forward_rejected(repo, server, tmp_path_factory, monkeypatch):
 
 def _raw_push(url, body, old, new, token="s3cret"):
     req = urllib.request.Request(f"{url}/proj/receive-pack", data=body, method="POST", headers={
-        "X-Mgit-Ref": "refs/heads/main", "X-Mgit-Old": old, "X-Mgit-New": new,
+        "X-Graft-Ref": "refs/heads/main", "X-Graft-Old": old, "X-Graft-New": new,
         "Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(req) as r:

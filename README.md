@@ -1,16 +1,16 @@
-# mgit
+# Graft
 
 A version control system written from scratch in Python, with a server you can push to and clone from.
 
-The object format is byte-for-byte the same as git's. Blob and tree ids match `git hash-object` and `git write-tree`, and real git can open a repository mgit wrote: `git fsck --strict` passes and `git log --graph` draws the history. The test suite uses real git as the referee for this.
+The object format is byte-for-byte the same as git's. Blob and tree ids match `git hash-object` and `git write-tree`, and real git can open a repository graft wrote: `git fsck --strict` passes and `git log --graph` draws the history. The test suite uses real git as the referee for this.
 
 **Live server:** `<your-render-url>` · browse the demo repo's history, merges and diffs in the browser, or clone it with the CLI.
 
 ```
-pip install git+https://github.com/<you>/mgit
-mgit clone <your-render-url>/demo
+pip install git+https://github.com/Shaan-4/graft
+graft clone <your-render-url>/demo
 cd demo
-mgit log --oneline
+graft log --oneline
 ```
 
 The client is pure standard library. No dependencies, and it works on Windows, macOS and Linux (CI runs on Ubuntu and Windows).
@@ -20,7 +20,7 @@ The client is pure standard library. No dependencies, and it works on Windows, m
 | Area | What | Where |
 |---|---|---|
 | Storage | Content-addressed blobs, trees and commits (a Merkle DAG). Atomic writes via temp file + rename, hash verified on every read | `objects.py` |
-| Working tree | `add`, `status`, `commit`, branches, `checkout`, `.mgitignore`, a stat cache so `status` skips unchanged files | `repo.py` |
+| Working tree | `add`, `status`, `commit`, branches, `checkout`, `.graftignore`, a stat cache so `status` skips unchanged files | `repo.py` |
 | Diff | Myers' O((N+M)·D) algorithm, unified output | `diff.py` |
 | Merge | Merge base (lowest common ancestor in the commit DAG), fast-forward, 3-way merge per file and per line (diff3), conflict markers and resolution | `merge.py`, `porcelain.py` |
 | Sync | `push`, `fetch`, `pull`, `clone` over HTTP; sends only objects the other side is missing | `sync.py` |
@@ -34,7 +34,7 @@ One detail that real git enforces and is easy to get wrong: trees are sorted as 
 
 **Diff.** Classic LCS by dynamic programming is O(N·M) no matter how similar the files are. Myers searches the edit graph by number of edits D: for D = 0, 1, 2, … it tracks the furthest point reachable on each diagonal, sliding along runs of matching lines for free, and stops at the first D that reaches the end. Work grows with the number of differences, not the file size squared. A property test checks on 3,000 random inputs that the script both rebuilds the target and has the same length as the DP optimum.
 
-**Merge.** Two-way merge can't tell "we added this line" from "they deleted it". Only the common ancestor can. Each region is compared against the base: if only one side changed it, take that side; if both changed it the same way, fine; otherwise it's a conflict. The base is the lowest common ancestor in the commit DAG, found by BFS. With criss-cross history there can be several; git then merges them recursively, whereas mgit picks the most recent (documented limitation).
+**Merge.** Two-way merge can't tell "we added this line" from "they deleted it". Only the common ancestor can. Each region is compared against the base: if only one side changed it, take that side; if both changed it the same way, fine; otherwise it's a conflict. The base is the lowest common ancestor in the commit DAG, found by BFS. With criss-cross history there can be several; git then merges them recursively, whereas graft picks the most recent (documented limitation).
 
 **Sync: send only what's missing.** The receiver lists the commits it already has. Having a commit implies having its entire history and every object it points to, so the sender walks back from what's wanted and stops at anything the receiver has. Unchanged files have unchanged blob ids, so they're skipped too.
 
@@ -82,14 +82,14 @@ python -m pytest -q                 # 40 tests, incl. git-compat and push races
 python bench/bench.py
 
 # server
-set MGIT_REPOS=repos                (Windows cmd; `export` on macOS/Linux)
-set MGIT_SEED_DEMO=1
+set GRAFT_REPOS=repos                (Windows cmd; `export` on macOS/Linux)
+set GRAFT_SEED_DEMO=1
 uvicorn server.app:app --port 8000
 ```
 
-Then `mgit clone http://localhost:8000/demo`.
+Then `graft clone http://localhost:8000/demo`.
 
-Pushing to a server with `MGIT_PUSH_TOKEN` set needs the same value in `MGIT_TOKEN` on the client. Pushing to a repo name that doesn't exist yet creates it.
+Pushing to a server with `GRAFT_PUSH_TOKEN` set needs the same value in `GRAFT_TOKEN` on the client. Pushing to a repo name that doesn't exist yet creates it.
 
 ## Commands
 
@@ -98,8 +98,8 @@ Pushing to a server with `MGIT_PUSH_TOKEN` set needs the same value in `MGIT_TOK
 ## What's not here
 
 - **Delta compression and packfiles.** Objects are sent and stored whole (zlib-compressed). See the push-size numbers above.
-- **git's wire protocol.** mgit's sync protocol is its own (simpler) HTTP protocol, so you can't `git push` to the mgit server, only read its repos with git locally.
-- **The binary index.** The staging area is a JSON file, so git can read history from an mgit repo but not its staged changes.
+- **git's wire protocol.** graft's sync protocol is its own (simpler) HTTP protocol, so you can't `git push` to the graft server, only read its repos with git locally.
+- **The binary index.** The staging area is a JSON file, so git can read history from an graft repo but not its staged changes.
 - **Recursive merge** for criss-cross histories (picks one merge base), rename detection, rebase, tags beyond plain refs, submodules.
 - **Persistence on the free hosting tier.** The live server's disk is wiped on restart; it rebuilds the demo repo on boot. Anything else pushed there is temporary.
 - **Line endings.** Files are stored byte for byte, with no CRLF conversion.
@@ -107,7 +107,7 @@ Pushing to a server with `MGIT_PUSH_TOKEN` set needs the same value in `MGIT_TOK
 ## Layout
 
 ```
-mgit/
+graft/
   objects.py     object format, store, tree build/flatten
   repo.py        refs + CAS, index, status, checkout, commit graph
   diff.py        Myers, LCS DP baseline, unified output

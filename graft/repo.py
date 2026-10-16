@@ -1,13 +1,13 @@
 """
 Repository: refs, index (staging area), working tree, commits.
 
-Layout of .mgit/ (same as .git/ where git cares, so git can read it):
+Layout of .graft/ (same as .git/ where git cares, so git can read it):
   HEAD                    "ref: refs/heads/main\\n"  or a raw commit id (detached)
   refs/heads/<branch>     commit id
   refs/remotes/<r>/<b>    last known position of a branch on a remote
   objects/                see objects.py
-  mgit-index.json         staging area (own format; git's index is binary)
-  mgit.json               config: user, remotes
+  graft-index.json         staging area (own format; git's index is binary)
+  graft.json               config: user, remotes
   MERGE_HEAD              present while a conflicted merge is being resolved
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .objects import MODE_EXEC, MODE_FILE, Commit, ObjectError, ObjectStore, encode_commit
 
-DIR_NAME = ".mgit"
+DIR_NAME = ".graft"
 LOCK_STALE_S = 60
 clock = time.time   # swappable so tests/demo can control commit timestamps
 
@@ -71,7 +71,7 @@ class Repo:
         for d in ("objects", "refs/heads", "refs/tags", "refs/remotes"):
             (gitdir / d).mkdir(parents=True, exist_ok=True)
         (gitdir / "HEAD").write_text(f"ref: refs/heads/{branch}\n", encoding="utf-8")
-        (gitdir / "mgit.json").write_text(json.dumps({"remotes": {}}, indent=2), encoding="utf-8")
+        (gitdir / "graft.json").write_text(json.dumps({"remotes": {}}, indent=2), encoding="utf-8")
         return cls(gitdir, None if bare else path)
 
     @classmethod
@@ -80,21 +80,21 @@ class Repo:
         for d in (p, *p.parents):
             if (d / DIR_NAME / "HEAD").is_file():
                 return cls(d / DIR_NAME, d)
-        raise RepoError("not inside an mgit repository (run `mgit init`)")
+        raise RepoError("not inside an graft repository (run `graft init`)")
 
     # ------------------------------------------------------------ config
 
     def config(self) -> dict:
-        f = self.gitdir / "mgit.json"
+        f = self.gitdir / "graft.json"
         return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"remotes": {}}
 
     def save_config(self, cfg: dict) -> None:
-        self._atomic_write(self.gitdir / "mgit.json", json.dumps(cfg, indent=2).encode())
+        self._atomic_write(self.gitdir / "graft.json", json.dumps(cfg, indent=2).encode())
 
     def identity(self) -> tuple[str, str]:
         user = self.config().get("user", {})
-        name = os.getenv("MGIT_AUTHOR_NAME") or user.get("name") or "mgit user"
-        email = os.getenv("MGIT_AUTHOR_EMAIL") or user.get("email") or "user@example.com"
+        name = os.getenv("GRAFT_AUTHOR_NAME") or user.get("name") or "graft user"
+        email = os.getenv("GRAFT_AUTHOR_EMAIL") or user.get("email") or "user@example.com"
         return name, email
 
     # ------------------------------------------------------------ refs
@@ -201,7 +201,7 @@ class Repo:
     # ------------------------------------------------------------ index
 
     def _index_path(self) -> Path:
-        return self.gitdir / "mgit-index.json"
+        return self.gitdir / "graft-index.json"
 
     def read_index(self) -> dict[str, dict]:
         """{path: {"sha", "mode", "mtime_ns", "size"}}"""
@@ -214,7 +214,7 @@ class Repo:
     # ------------------------------------------------------------ working tree
 
     def _ignore_patterns(self) -> list[str]:
-        f = self.worktree / ".mgitignore"
+        f = self.worktree / ".graftignore"
         pats = [DIR_NAME]
         if f.exists():
             pats += [l.strip() for l in f.read_text(encoding="utf-8").splitlines()

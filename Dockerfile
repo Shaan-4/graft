@@ -1,11 +1,11 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
-    MGIT_REPOS=/data/repos MGIT_SEED_DEMO=1
+    GRAFT_REPOS=/data/repos GRAFT_SEED_DEMO=1
 WORKDIR /srv
 
 COPY pyproject.toml ./
-COPY mgit ./mgit
+COPY graft ./graft
 COPY server ./server
 RUN pip install --no-cache-dir ".[server]"
 
