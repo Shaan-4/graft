@@ -99,7 +99,7 @@ def test_ref_cas_under_threads(repo):
     Exactly one may win; the rest must be rejected, never overwrite."""
     write(repo, "f", "1\n")
     old = commit_all(repo, "c")
-    wins, losses = [], []
+    wins, losses, errors = [], [], []
     barrier = threading.Barrier(16)
 
     def attempt(i):
@@ -109,10 +109,13 @@ def test_ref_cas_under_threads(repo):
             wins.append(i)
         except RefConflict:
             losses.append(i)
+        except Exception as e:      # a dying thread is silent; record it
+            errors.append(repr(e))
 
     ts = [threading.Thread(target=attempt, args=(i,)) for i in range(16)]
     [t.start() for t in ts]
     [t.join() for t in ts]
+    assert errors == []
     assert len(wins) == 1 and len(losses) == 15
     assert repo.read_ref("refs/heads/main") == f"{wins[0]:040x}"
 

@@ -150,6 +150,13 @@ class Repo:
             fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
             raise RefConflict(f"{ref} is locked by another update; retry")
+        except PermissionError:
+            # Windows reports some lock contention as access denied rather
+            # than "exists": e.g. while another thread has the lock file open
+            # in a mode that refuses sharing, or it is mid-rename/delete.
+            if os.name != "nt":
+                raise
+            raise RefConflict(f"{ref} is locked by another update; retry")
         try:
             with os.fdopen(fd, "wb") as f:
                 current = self.read_ref(ref)
@@ -176,6 +183,11 @@ class Repo:
                 lock.unlink()
         except FileNotFoundError:
             pass
+        except PermissionError:
+            # Windows: the lock is open by its holder right now, so it is
+            # not abandoned. Leave it; the O_EXCL create decides the winner.
+            if os.name != "nt":
+                raise
 
     def delete_ref(self, ref: str) -> None:
         (self.gitdir / ref).unlink(missing_ok=True)
