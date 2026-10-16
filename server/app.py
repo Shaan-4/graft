@@ -196,7 +196,7 @@ def ui_home(request: Request):
     body = f"""<h1>Repositories</h1>
 <p class="mute">Hosted by a version-control system written from scratch. Object format is byte-compatible with git.</p>
 <div class="card">{''.join(rows) or '<div class="row mute">No repositories yet.</div>'}</div>
-<h2>Try it</h2><pre class="card" style="padding:12px 14px">pip install git+https://github.com/&lt;you&gt;/graft
+<h2>Try it</h2><pre class="card" style="padding:12px 14px">pip install git+https://github.com/Shaan-4/graft
 graft clone {e(base)}/demo
 cd demo
 graft log --oneline</pre>"""

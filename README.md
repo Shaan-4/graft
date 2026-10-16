@@ -4,11 +4,11 @@ A version control system written from scratch in Python, with a server you can p
 
 The object format is byte-for-byte the same as git's. Blob and tree ids match `git hash-object` and `git write-tree`, and real git can open a repository graft wrote: `git fsck --strict` passes and `git log --graph` draws the history. The test suite uses real git as the referee for this.
 
-**Live server:** `<your-render-url>` · browse the demo repo's history, merges and diffs in the browser, or clone it with the CLI.
+**Live server:** https://graft-5ize.onrender.com · browse the demo repo's history, merges and diffs in the browser, or clone it with the CLI.
 
 ```
 pip install git+https://github.com/Shaan-4/graft
-graft clone <your-render-url>/demo
+graft clone https://graft-5ize.onrender.com/demo
 cd demo
 graft log --oneline
 ```
