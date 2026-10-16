@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: mgit
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: MGIT_PUSH_TOKEN
+        generateValue: true
+      - key: MGIT_SEED_DEMO
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "2"

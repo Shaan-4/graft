@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      # Includes the git-compatibility tests: real git checks our objects.
+      - run: python -m pytest -q
+      - name: Benchmarks (informational)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: python bench/bench.py
